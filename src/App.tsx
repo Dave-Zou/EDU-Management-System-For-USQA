@@ -12,126 +12,128 @@ import AppealList from '@/pages/Appeals/AppealList';
 import ExamSchedule from '@/pages/Exam/ExamSchedule';
 import UserManagement from '@/pages/UserManagement/UserManagement';
 import Profile from '@/pages/Profile/Profile';
+import ToastContainer from '@/components/Toast/Toast';
 
 const ProtectedRoute = ({ children, requireRole }: { children: React.ReactNode; requireRole?: string[] }) => {
   const { isLoggedIn, user } = useAuthStore();
-  
+
   if (!isLoggedIn) {
     return <Navigate to="/" replace />;
   }
-  
+
   if (requireRole && user && !requireRole.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 const App = () => {
   return (
     <Router>
+      <ToastContainer />
       <Routes>
         <Route path="/" element={<Login />} />
-        
-        <Route 
-          path="/dashboard" 
+
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/grades" 
+
+        <Route
+          path="/grades"
           element={
             <ProtectedRoute>
               <GradeList />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/grades/register" 
+
+        <Route
+          path="/grades/register"
           element={
             <ProtectedRoute requireRole={['admin', 'teacher']}>
               <GradeRegister />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/grades/edit/:id" 
+
+        <Route
+          path="/grades/edit/:id"
           element={
             <ProtectedRoute requireRole={['admin']}>
               <GradeEdit />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/grades/review" 
+
+        <Route
+          path="/grades/review"
           element={
             <ProtectedRoute requireRole={['admin', 'homeroom_teacher']}>
               <GradeReview />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/schedule" 
+
+        <Route
+          path="/schedule"
           element={
             <ProtectedRoute>
               <ScheduleView />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/schedule/arrange" 
+
+        <Route
+          path="/schedule/arrange"
           element={
             <ProtectedRoute requireRole={['admin']}>
               <ScheduleArrange />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/appeals" 
+
+        <Route
+          path="/appeals"
           element={
             <ProtectedRoute>
               <AppealList />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/profile" 
+
+        <Route
+          path="/profile"
           element={
             <ProtectedRoute>
               <Profile />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/exam" 
+
+        <Route
+          path="/exam"
           element={
-            <ProtectedRoute requireRole={['admin']}>
+            <ProtectedRoute>
               <ExamSchedule />
             </ProtectedRoute>
-          } 
+          }
         />
-        
-        <Route 
-          path="/users" 
+
+        <Route
+          path="/users"
           element={
             <ProtectedRoute requireRole={['admin']}>
               <UserManagement />
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>

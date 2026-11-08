@@ -17,3 +17,13 @@ body {
 #root {
   min-height: 100vh;
 }
+
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+}

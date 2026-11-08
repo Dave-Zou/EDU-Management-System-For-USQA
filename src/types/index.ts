@@ -8,6 +8,7 @@ export interface User {
   password: string;
   classId?: string;
   department?: string;
+  idCard?: string;
 }
 
 export type GradeStatus = 'pending' | 'reviewed' | 'rejected';
@@ -72,7 +73,9 @@ export interface GradeFilter {
   classId?: string;
   courseId?: string;
   studentId?: string;
+  studentKeyword?: string;
   status?: GradeStatus;
+  teacherId?: string;
 }
 
 export interface ScheduleFilter {
@@ -127,4 +130,19 @@ export interface Major {
   id: string;
   name: string;
   department: string;
+}
+
+export interface AuthCode {
+  code: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+}
+
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
 }

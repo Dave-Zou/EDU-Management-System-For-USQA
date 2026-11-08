@@ -2,25 +2,26 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useGradeStore } from '@/store/useStore';
+import { useAuthStore, useGradeStore, useToastStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 
 const GradeEdit = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
   const { getGrades, editGrade } = useGradeStore();
+  const { showToast } = useToastStore();
   const navigate = useNavigate();
 
   const [score, setScore] = useState('');
   const [fullScore, setFullScore] = useState('');
+  const grade = getGrades({}).find((g) => g.id === id);
 
   useEffect(() => {
-    const grade = getGrades({}).find((g) => g.id === id);
     if (grade) {
       setScore(String(grade.score));
       setFullScore(String(grade.fullScore));
     }
-  }, [id, getGrades]);
+  }, [grade]);
 
   const canEdit = user?.role === 'admin';
 
@@ -39,23 +40,42 @@ const GradeEdit = () => {
     );
   }
 
+  if (!grade) {
+    return (
+      <Layout currentPage="/grades">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-gray-500">未找到该成绩记录</p>
+            <Button variant="secondary" className="mt-4" onClick={() => navigate('/grades')}>
+              返回成绩列表
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   const handleSubmit = () => {
     if (!score || !fullScore) {
-      alert('请填写成绩和满分');
+      showToast('请填写成绩和满分', 'error');
       return;
     }
-
+    if (Number(score) < 0 || Number(fullScore) <= 0) {
+      showToast('成绩或满分不合法', 'error');
+      return;
+    }
     if (Number(score) > Number(fullScore)) {
-      alert('成绩不能超过满分');
+      showToast('成绩不能超过满分', 'error');
       return;
     }
 
     editGrade(id!, {
       score: Number(score),
       fullScore: Number(fullScore),
+      status: 'pending',
     });
 
-    alert('成绩修改成功');
+    showToast('成绩已修改，需重新复核', 'success');
     navigate('/grades');
   };
 
@@ -64,6 +84,7 @@ const GradeEdit = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <button
+            type="button"
             onClick={() => navigate('/grades')}
             className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors mr-4"
           >
@@ -71,7 +92,9 @@ const GradeEdit = () => {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">编辑成绩</h2>
-            <p className="text-gray-500 mt-1">修改已登记的成绩</p>
+            <p className="text-gray-500 mt-1">
+              {grade.studentName} · {grade.courseName}
+            </p>
           </div>
         </div>
       </div>
