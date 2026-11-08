@@ -1,47 +1,39 @@
 import { useState } from 'react';
 import { User, Lock, Mail, GraduationCap, Building2 } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 import Modal from '@/components/Modal/Modal';
+import { roleLabels } from '@/utils/labels';
 
 const Profile = () => {
-  const { user } = useAuthStore();
+  const { user, classes, changePassword, showToast } = useAppStore();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const getRoleLabel = () => {
-    if (!user) return '';
-    switch (user.role) {
-      case 'student':
-        return '学生';
-      case 'teacher':
-        return '任课老师';
-      case 'homeroom_teacher':
-        return '班主任老师';
-      case 'admin':
-        return '教务管理员';
-      default:
-        return '';
-    }
-  };
+  const className = classes.find((item) => item.id === user?.classId)?.name || '-';
 
   const handlePasswordChange = () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      alert('请填写所有密码字段');
+      showToast('请填写所有密码字段', 'warning');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast('新密码至少 6 位', 'warning');
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('新密码和确认密码不一致');
+      showToast('新密码和确认密码不一致', 'warning');
       return;
     }
-    if (oldPassword !== '123456') {
-      alert('旧密码不正确');
+    const ok = changePassword(oldPassword, newPassword);
+    if (!ok) {
+      showToast('旧密码不正确', 'error');
       return;
     }
-    alert('密码修改成功');
+    showToast('密码修改成功', 'success');
     setIsPasswordModalOpen(false);
     setOldPassword('');
     setNewPassword('');
@@ -50,9 +42,9 @@ const Profile = () => {
 
   const infoItems = [
     { label: '姓名', value: user?.name, icon: User },
-    { label: '身份', value: getRoleLabel(), icon: GraduationCap },
+    { label: '身份', value: user ? roleLabels[user.role] : '', icon: GraduationCap },
     { label: '账号', value: user?.username, icon: Mail },
-    { label: '班级', value: user?.classId ? `班级ID: ${user.classId}` : '-', icon: Building2 },
+    { label: '班级', value: className, icon: Building2 },
     { label: '部门', value: user?.department || '-', icon: Building2 },
   ];
 
@@ -72,7 +64,7 @@ const Profile = () => {
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-800">{user?.name}</h3>
-                <p className="text-gray-500">{getRoleLabel()}</p>
+                <p className="text-gray-500">{user ? roleLabels[user.role] : ''}</p>
               </div>
             </div>
 
@@ -93,7 +85,11 @@ const Profile = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">账户安全</h3>
-            <Button variant="secondary" className="w-full flex items-center justify-center" onClick={() => setIsPasswordModalOpen(true)}>
+            <Button
+              variant="secondary"
+              className="w-full flex items-center justify-center"
+              onClick={() => setIsPasswordModalOpen(true)}
+            >
               <Lock className="w-4 h-4 mr-2" />
               修改密码
             </Button>
@@ -128,7 +124,7 @@ const Profile = () => {
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               placeholder="请输入旧密码"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -137,8 +133,8 @@ const Profile = () => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              placeholder="至少 6 位"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -148,16 +144,14 @@ const Profile = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="请再次输入新密码"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div className="flex justify-end space-x-4">
             <Button variant="secondary" onClick={() => setIsPasswordModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handlePasswordChange}>
-              确认修改
-            </Button>
+            <Button onClick={handlePasswordChange}>确认修改</Button>
           </div>
         </div>
       </Modal>

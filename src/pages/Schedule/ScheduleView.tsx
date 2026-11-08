@@ -1,43 +1,35 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useScheduleStore, useGradeStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
-
-const days = ['周一', '周二', '周三', '周四', '周五'];
-const periods = ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节'];
+import { weekDays, periodLabels } from '@/utils/labels';
 
 const ScheduleView = () => {
-  const { user } = useAuthStore();
-  const { getSchedule } = useScheduleStore();
-  const { classes } = useGradeStore();
+  const { user, getSchedule, classes } = useAppStore();
   const navigate = useNavigate();
-
   const [selectedClass, setSelectedClass] = useState(user?.classId || '');
+  const [week, setWeek] = useState(1);
 
   const getFilteredSchedule = () => {
-    if (user?.role === 'student') {
-      return getSchedule({ classId: user.classId });
-    } else if (user?.role === 'teacher') {
-      return getSchedule({ teacherId: user.id });
-    } else if (user?.role === 'homeroom_teacher') {
-      return getSchedule({ classId: user.classId });
-    }
-    return getSchedule({ classId: selectedClass });
+    if (user?.role === 'student') return getSchedule({ classId: user.classId });
+    if (user?.role === 'teacher') return getSchedule({ teacherId: user.id });
+    if (user?.role === 'homeroom_teacher') return getSchedule({ classId: user.classId });
+    return getSchedule({ classId: selectedClass || undefined });
   };
 
   const schedules = getFilteredSchedule();
 
   const getScheduleGrid = () => {
-    const grid: (typeof schedules[0] | null)[][] = Array(periods.length)
+    const grid: (typeof schedules[0] | null)[][] = Array(periodLabels.length)
       .fill(null)
-      .map(() => Array(days.length).fill(null));
+      .map(() => Array(weekDays.length).fill(null));
 
     schedules.forEach((schedule) => {
       const dayIndex = schedule.dayOfWeek - 1;
       const periodIndex = schedule.period - 1;
-      if (dayIndex >= 0 && dayIndex < days.length && periodIndex >= 0 && periodIndex < periods.length) {
+      if (dayIndex >= 0 && dayIndex < weekDays.length && periodIndex >= 0 && periodIndex < periodLabels.length) {
         grid[periodIndex][dayIndex] = schedule;
       }
     });
@@ -57,10 +49,7 @@ const ScheduleView = () => {
     'bg-yellow-100 text-yellow-800 border-yellow-200',
   ];
 
-  const getCourseColor = (courseName: string) => {
-    const index = courseName.length % courseColors.length;
-    return courseColors[index];
-  };
+  const getCourseColor = (courseName: string) => courseColors[courseName.length % courseColors.length];
 
   return (
     <Layout currentPage="/schedule">
@@ -77,8 +66,23 @@ const ScheduleView = () => {
         )}
       </div>
 
-      {user?.role === 'admin' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setWeek((value) => Math.max(1, value - 1))}
+            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="font-medium text-gray-800">第 {week} 周</span>
+          <button
+            onClick={() => setWeek((value) => Math.min(20, value + 1))}
+            className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        {user?.role === 'admin' && (
           <div className="flex items-center">
             <label className="block text-sm font-medium text-gray-700 mr-4">选择班级:</label>
             <select
@@ -88,12 +92,14 @@ const ScheduleView = () => {
             >
               <option value="">全部班级</option>
               {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
               ))}
             </select>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
@@ -101,7 +107,7 @@ const ScheduleView = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">节次</th>
-                {days.map((day) => (
+                {weekDays.map((day) => (
                   <th key={day} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                     {day}
                   </th>
@@ -111,16 +117,11 @@ const ScheduleView = () => {
             <tbody className="divide-y divide-gray-100">
               {grid.map((row, periodIndex) => (
                 <tr key={periodIndex}>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{periods[periodIndex]}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 font-medium">{periodLabels[periodIndex]}</td>
                   {row.map((schedule, dayIndex) => (
-                    <td
-                      key={dayIndex}
-                      className="px-2 py-2"
-                    >
+                    <td key={dayIndex} className="px-2 py-2">
                       {schedule ? (
-                        <div
-                          className={`p-2 rounded-lg border text-sm ${getCourseColor(schedule.courseName)}`}
-                        >
+                        <div className={`p-2 rounded-lg border text-sm ${getCourseColor(schedule.courseName)}`}>
                           <div className="font-medium truncate">{schedule.courseName}</div>
                           <div className="text-xs truncate">{schedule.teacherName}</div>
                           <div className="text-xs opacity-75">{schedule.classroom}</div>
@@ -142,13 +143,10 @@ const ScheduleView = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {schedules.length > 0 ? (
             schedules.map((schedule) => (
-              <div
-                key={schedule.id}
-                className={`p-3 rounded-lg border ${getCourseColor(schedule.courseName)}`}
-              >
+              <div key={schedule.id} className={`p-3 rounded-lg border ${getCourseColor(schedule.courseName)}`}>
                 <div className="font-medium">{schedule.courseName}</div>
                 <div className="text-xs mt-1">
-                  {days[schedule.dayOfWeek - 1]} {periods[schedule.period - 1]}
+                  {weekDays[schedule.dayOfWeek - 1]} {periodLabels[schedule.period - 1]}
                 </div>
                 <div className="text-xs mt-1">
                   {schedule.classroom} | {schedule.className}
@@ -156,9 +154,7 @@ const ScheduleView = () => {
               </div>
             ))
           ) : (
-            <div className="col-span-full text-center text-gray-400 py-8">
-              暂无课程安排
-            </div>
+            <div className="col-span-full text-center text-gray-400 py-8">暂无课程安排</div>
           )}
         </div>
       </div>

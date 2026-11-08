@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, X, CheckSquare, Square } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useGradeStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 import Modal from '@/components/Modal/Modal';
 import { Grade } from '@/types';
 
 const GradeReview = () => {
-  const { user } = useAuthStore();
-  const { getGrades, reviewGrade, batchReviewGrades } = useGradeStore();
+  const { user, getGrades, reviewGrade, batchReviewGrades, showToast } = useAppStore();
   const navigate = useNavigate();
 
   const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
@@ -18,39 +17,38 @@ const GradeReview = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchComment, setBatchComment] = useState('');
+  const [batchAction, setBatchAction] = useState<'reviewed' | 'rejected'>('reviewed');
 
-  const getFilteredGrades = () => {
-    const params: Record<string, string> = { status: 'pending' };
+  const pendingGrades = (() => {
+    const params: { status: Grade['status']; classId?: string } = { status: 'pending' };
     if (user?.role === 'homeroom_teacher' && user.classId) {
       params.classId = user.classId;
     }
     return getGrades(params);
-  };
-
-  const pendingGrades = getFilteredGrades();
+  })();
 
   const canReview = user?.role === 'homeroom_teacher' || user?.role === 'admin';
   const isAdmin = user?.role === 'admin';
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]));
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === pendingGrades.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(pendingGrades.map((g) => g.id));
-    }
+    if (selectedIds.length === pendingGrades.length) setSelectedIds([]);
+    else setSelectedIds(pendingGrades.map((item) => item.id));
   };
 
-  const handleBatchReview = (status: 'reviewed' | 'rejected') => {
+  const openBatch = (action: 'reviewed' | 'rejected') => {
     if (selectedIds.length === 0) return;
-    
-    batchReviewGrades(status, selectedIds, batchComment || undefined);
-    alert(`已批量${status === 'reviewed' ? '通过' : '驳回'} ${selectedIds.length}条成绩`);
+    setBatchAction(action);
+    setIsBatchModalOpen(true);
+  };
+
+  const handleBatchReview = () => {
+    if (selectedIds.length === 0) return;
+    batchReviewGrades(batchAction, selectedIds, batchComment || undefined);
+    showToast(`已批量${batchAction === 'reviewed' ? '通过' : '驳回'} ${selectedIds.length} 条成绩`, 'success');
     setIsBatchModalOpen(false);
     setSelectedIds([]);
     setBatchComment('');
@@ -73,9 +71,8 @@ const GradeReview = () => {
 
   const handleReview = (status: 'reviewed' | 'rejected') => {
     if (!selectedGrade) return;
-    
     reviewGrade(selectedGrade.id, status, comment || undefined);
-    alert(status === 'reviewed' ? '成绩已通过复核' : '成绩已驳回');
+    showToast(status === 'reviewed' ? '成绩已通过复核' : '成绩已驳回', status === 'reviewed' ? 'success' : 'warning');
     setIsModalOpen(false);
     setSelectedGrade(null);
     setComment('');
@@ -99,21 +96,11 @@ const GradeReview = () => {
         {isAdmin && pendingGrades.length > 0 && (
           <div className="flex items-center space-x-3">
             <span className="text-sm text-gray-500">已选择 {selectedIds.length} 条</span>
-            <Button 
-              variant="success" 
-              size="sm" 
-              onClick={() => setIsBatchModalOpen(true)}
-              disabled={selectedIds.length === 0}
-            >
+            <Button variant="success" size="sm" onClick={() => openBatch('reviewed')} disabled={selectedIds.length === 0}>
               <Check className="w-4 h-4 mr-1" />
               一键通过
             </Button>
-            <Button 
-              variant="danger" 
-              size="sm" 
-              onClick={() => setIsBatchModalOpen(true)}
-              disabled={selectedIds.length === 0}
-            >
+            <Button variant="danger" size="sm" onClick={() => openBatch('rejected')} disabled={selectedIds.length === 0}>
               <X className="w-4 h-4 mr-1" />
               一键驳回
             </Button>
@@ -172,28 +159,28 @@ const GradeReview = () => {
                     <td className="px-6 py-4 text-sm text-gray-800">{grade.className}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{grade.courseName}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{grade.teacherName}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800">{grade.score}/{grade.fullScore}</td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {grade.score}/{grade.fullScore}
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-800">{grade.gradeLevel}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{grade.createdAt}</td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedGrade(grade);
-                            setIsModalOpen(true);
-                          }}
-                          className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors flex items-center"
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          复核
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedGrade(grade);
+                          setIsModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors flex items-center"
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        复核
+                      </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 9 : 8} className="px-6 py-12 text-center text-gray-400">
                     暂无待复核成绩
                   </td>
                 </tr>
@@ -225,14 +212,16 @@ const GradeReview = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">成绩</label>
-                <p className="text-gray-800">{selectedGrade.score}/{selectedGrade.fullScore}</p>
+                <p className="text-gray-800">
+                  {selectedGrade.score}/{selectedGrade.fullScore}
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-500">等级</label>
                 <p className="text-gray-800">{selectedGrade.gradeLevel}</p>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-500">复核意见（选填）</label>
               <textarea
@@ -262,10 +251,11 @@ const GradeReview = () => {
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
             <p className="text-blue-800">
-              即将批量审核 <span className="font-bold">{selectedIds.length}</span> 条成绩
+              即将{batchAction === 'reviewed' ? '通过' : '驳回'} <span className="font-bold">{selectedIds.length}</span>{' '}
+              条成绩
             </p>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-500">复核意见（选填）</label>
             <textarea
@@ -281,13 +271,8 @@ const GradeReview = () => {
             <Button variant="secondary" onClick={() => setIsBatchModalOpen(false)}>
               取消
             </Button>
-            <Button variant="danger" onClick={() => handleBatchReview('rejected')}>
-              <X className="w-4 h-4 mr-2" />
-              一键驳回
-            </Button>
-            <Button variant="success" onClick={() => handleBatchReview('reviewed')}>
-              <Check className="w-4 h-4 mr-2" />
-              一键通过
+            <Button variant={batchAction === 'reviewed' ? 'success' : 'danger'} onClick={handleBatchReview}>
+              确认{batchAction === 'reviewed' ? '通过' : '驳回'}
             </Button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { User, Course, Class, Grade, Schedule } from '@/types';
+import { User, Course, Class, Grade, Schedule, Exam, Major, AppNotification } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -301,8 +301,118 @@ export const mockSchedule: Schedule[] = [
   },
 ];
 
+export const mockMajors: Major[] = [
+  { id: 'M001', name: '计算机科学', department: '计算机学院' },
+  { id: 'M002', name: '软件工程', department: '计算机学院' },
+  { id: 'M003', name: '电子信息工程', department: '电子工程学院' },
+  { id: 'M004', name: '通信工程', department: '电子工程学院' },
+  { id: 'M005', name: '工商管理', department: '商学院' },
+  { id: 'M006', name: '会计学', department: '商学院' },
+  { id: 'M007', name: '数学', department: '数学系' },
+];
+
+export const mockExams: Exam[] = [
+  {
+    id: 'E001',
+    courseId: 'course001',
+    courseName: '高等数学',
+    classId: 'c001',
+    className: '计算机2401班',
+    teacherId: 't002',
+    teacherName: '李老师',
+    examType: 'midterm',
+    examDate: '2024-11-15',
+    startTime: '09:00',
+    endTime: '11:00',
+    classroom: 'A101',
+    description: '期中考试',
+    createdAt: '2024-10-20',
+  },
+  {
+    id: 'E002',
+    courseId: 'course003',
+    courseName: '计算机基础',
+    classId: 'c001',
+    className: '计算机2401班',
+    teacherId: 't001',
+    teacherName: '孙老师',
+    examType: 'quiz',
+    examDate: '2024-11-20',
+    startTime: '14:00',
+    endTime: '15:30',
+    classroom: 'B201',
+    createdAt: '2024-10-25',
+  },
+  {
+    id: 'E003',
+    courseId: 'course001',
+    courseName: '高等数学',
+    classId: 'c002',
+    className: '数学2401班',
+    teacherId: 't002',
+    teacherName: '李老师',
+    examType: 'final',
+    examDate: '2024-12-20',
+    startTime: '08:30',
+    endTime: '10:30',
+    classroom: 'A102',
+    description: '期末考试',
+    createdAt: '2024-11-01',
+  },
+];
+
+export const mockNotifications: AppNotification[] = [
+  {
+    id: 'n-s1',
+    title: '成绩已更新',
+    content: '您的高等数学成绩已发布，请及时查看',
+    type: 'info',
+    time: '5分钟前',
+    read: false,
+    targetRole: 'student',
+  },
+  {
+    id: 'n-s2',
+    title: '课表调整通知',
+    content: '下周一的计算机基础课程调整至 B201 教室',
+    type: 'warning',
+    time: '1小时前',
+    read: false,
+    targetRole: 'student',
+  },
+  {
+    id: 'n-t1',
+    title: '成绩登记提醒',
+    content: '请及时完成本学期课程成绩登记',
+    type: 'warning',
+    time: '10分钟前',
+    read: false,
+    targetRole: 'teacher',
+  },
+  {
+    id: 'n-h1',
+    title: '班级成绩汇总',
+    content: '班级有待复核成绩，请尽快审核',
+    type: 'info',
+    time: '15分钟前',
+    read: false,
+    targetRole: 'homeroom_teacher',
+  },
+  {
+    id: 'n-a1',
+    title: '成绩复核待处理',
+    content: '系统中仍有待复核成绩，请及时处理',
+    type: 'warning',
+    time: '5分钟前',
+    read: false,
+    targetRole: 'admin',
+  },
+];
+
+export const validAuthCodes = ['TEACHER123', 'ADMIN456', 'AUTH789'];
+
 export const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 9);
+  return `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 7)}`;
 };
 
 export const getGradeLevel = (score: number): string => {
@@ -312,3 +422,5 @@ export const getGradeLevel = (score: number): string => {
   if (score >= 60) return '及格';
   return '不及格';
 };
+
+export const todayISO = (): string => new Date().toISOString().split('T')[0];

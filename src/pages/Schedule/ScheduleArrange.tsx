@@ -2,32 +2,28 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, BookOpen } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useScheduleStore, useGradeStore, useCourseManagementStore, useUserManagementStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
+import { weekDays, periodLabels } from '@/utils/labels';
 
-const days = ['周一', '周二', '周三', '周四', '周五'];
-const periods = ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节'];
+const emptyForm = {
+  classId: '',
+  courseId: '',
+  teacherId: '',
+  majorId: '',
+  dayOfWeek: 1,
+  period: 1,
+  classroom: '',
+  startDate: '',
+  endDate: '',
+};
 
 const ScheduleArrange = () => {
-  const { user } = useAuthStore();
-  const { getSchedule, addSchedule, deleteSchedule } = useScheduleStore();
-  const { classes, courses, users } = useGradeStore();
-  const { majors } = useUserManagementStore();
-  const { addCourse } = useCourseManagementStore();
+  const { user, getSchedule, addSchedule, deleteSchedule, classes, courses, users, majors, addCourse, showToast } =
+    useAppStore();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    classId: '',
-    courseId: '',
-    teacherId: '',
-    majorId: '',
-    dayOfWeek: 1,
-    period: 1,
-    classroom: '',
-    startDate: '',
-    endDate: '',
-  });
-
+  const [formData, setFormData] = useState(emptyForm);
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [courseFormData, setCourseFormData] = useState({
     name: '',
@@ -37,22 +33,18 @@ const ScheduleArrange = () => {
   });
 
   const schedules = getSchedule();
-
-  const teachers = users.filter((u) => u.role === 'teacher' || u.role === 'homeroom_teacher');
-
+  const teachers = users.filter((item) => item.role === 'teacher' || item.role === 'homeroom_teacher');
   const canArrange = user?.role === 'admin';
-
-  const filteredClasses = formData.majorId 
-    ? classes.filter((cls) => cls.major === majors.find((m) => m.id === formData.majorId)?.name)
-    : classes;
+  const selectedMajor = majors.find((item) => item.id === formData.majorId);
+  const filteredClasses = selectedMajor ? classes.filter((cls) => cls.major === selectedMajor.name) : classes;
 
   const handleAddCourse = () => {
     if (!courseFormData.name || !courseFormData.code) {
-      alert('请填写完整信息');
+      showToast('请填写课程名称和代码', 'warning');
       return;
     }
     addCourse(courseFormData);
-    alert('课程创建成功');
+    showToast('课程创建成功', 'success');
     setShowAddCourse(false);
     setCourseFormData({ name: '', code: '', credit: 2, department: '' });
   };
@@ -74,15 +66,15 @@ const ScheduleArrange = () => {
 
   const handleSubmit = () => {
     if (!formData.classId || !formData.courseId || !formData.teacherId || !formData.classroom) {
-      alert('请填写完整信息');
+      showToast('请填写完整信息', 'warning');
       return;
     }
 
-    const cls = classes.find((c) => c.id === formData.classId);
-    const course = courses.find((c) => c.id === formData.courseId);
-    const teacher = users.find((u) => u.id === formData.teacherId);
+    const cls = classes.find((item) => item.id === formData.classId);
+    const course = courses.find((item) => item.id === formData.courseId);
+    const teacher = users.find((item) => item.id === formData.teacherId);
 
-    addSchedule({
+    const result = addSchedule({
       classId: formData.classId,
       className: cls?.name || '',
       courseId: formData.courseId,
@@ -96,23 +88,19 @@ const ScheduleArrange = () => {
       endDate: formData.endDate || '2024-06-28',
     });
 
-    alert('课程安排成功');
-    setFormData({
-      classId: '',
-      courseId: '',
-      teacherId: '',
-      dayOfWeek: 1,
-      period: 1,
-      classroom: '',
-      startDate: '',
-      endDate: '',
-    });
+    if (!result.ok) {
+      showToast(result.message, 'error');
+      return;
+    }
+
+    showToast(result.message, 'success');
+    setFormData(emptyForm);
   };
 
   const handleDelete = (id: string) => {
     if (confirm('确定要删除此课程安排吗？')) {
       deleteSchedule(id);
-      alert('删除成功');
+      showToast('删除成功', 'success');
     }
   };
 
@@ -128,7 +116,7 @@ const ScheduleArrange = () => {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">课程安排</h2>
-            <p className="text-gray-500 mt-1">为班级安排课程</p>
+            <p className="text-gray-500 mt-1">为班级安排课程，自动检测时间冲突</p>
           </div>
         </div>
       </div>
@@ -146,7 +134,9 @@ const ScheduleArrange = () => {
               >
                 <option value="">全部专业</option>
                 {majors.map((major) => (
-                  <option key={major.id} value={major.id}>{major.name}</option>
+                  <option key={major.id} value={major.id}>
+                    {major.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -159,26 +149,30 @@ const ScheduleArrange = () => {
               >
                 <option value="">请选择班级</option>
                 {filteredClasses.map((cls) => (
-                  <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">课程</label>
-              <div className="relative">
+              <div className="flex gap-2">
                 <select
                   value={formData.courseId}
                   onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="">请选择课程</option>
                   {courses.map((course) => (
-                    <option key={course.id} value={course.id}>{course.name}</option>
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                    </option>
                   ))}
                 </select>
                 <button
                   onClick={() => setShowAddCourse(true)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-primary-600"
+                  className="px-3 rounded-lg border border-gray-300 text-gray-500 hover:text-primary-600"
                   title="新建课程"
                 >
                   <Plus className="w-4 h-4" />
@@ -194,7 +188,9 @@ const ScheduleArrange = () => {
               >
                 <option value="">请选择老师</option>
                 {teachers.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -206,8 +202,10 @@ const ScheduleArrange = () => {
                   onChange={(e) => setFormData({ ...formData, dayOfWeek: Number(e.target.value) })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {days.map((day, index) => (
-                    <option key={day} value={index + 1}>{day}</option>
+                  {weekDays.map((day, index) => (
+                    <option key={day} value={index + 1}>
+                      {day}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -218,8 +216,10 @@ const ScheduleArrange = () => {
                   onChange={(e) => setFormData({ ...formData, period: Number(e.target.value) })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {periods.map((period, index) => (
-                    <option key={period} value={index + 1}>{period}</option>
+                  {periodLabels.map((period, index) => (
+                    <option key={period} value={index + 1}>
+                      {period}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -262,7 +262,7 @@ const ScheduleArrange = () => {
           </Button>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800">已安排课程</h3>
           </div>
@@ -286,7 +286,7 @@ const ScheduleArrange = () => {
                       <td className="px-6 py-4 text-sm text-gray-800">{schedule.courseName}</td>
                       <td className="px-6 py-4 text-sm text-gray-800">{schedule.teacherName}</td>
                       <td className="px-6 py-4 text-sm text-gray-800">
-                        {days[schedule.dayOfWeek - 1]} {periods[schedule.period - 1]}
+                        {weekDays[schedule.dayOfWeek - 1]} {periodLabels[schedule.period - 1]}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-800">{schedule.classroom}</td>
                       <td className="px-6 py-4">
@@ -313,28 +313,24 @@ const ScheduleArrange = () => {
         </div>
 
         {showAddCourse && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                 <BookOpen className="w-5 h-5 mr-2" />
                 新建课程
               </h3>
-              <button
-                onClick={() => setShowAddCourse(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setShowAddCourse(false)} className="text-gray-400 hover:text-gray-600">
                 ✕
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">课程名称</label>
                 <input
                   type="text"
                   value={courseFormData.name}
                   onChange={(e) => setCourseFormData({ ...courseFormData, name: e.target.value })}
-                  placeholder="请输入课程名称"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -343,42 +339,41 @@ const ScheduleArrange = () => {
                   type="text"
                   value={courseFormData.code}
                   onChange={(e) => setCourseFormData({ ...courseFormData, code: e.target.value })}
-                  placeholder="请输入课程代码"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">学分</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={courseFormData.credit}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, credit: Number(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">所属学院</label>
-                  <select
-                    value={courseFormData.department}
-                    onChange={(e) => setCourseFormData({ ...courseFormData, department: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="">请选择学院</option>
-                    {[...new Set(majors.map((m) => m.department))].map((dept) => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">学分</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={courseFormData.credit}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, credit: Number(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">所属学院</label>
+                <select
+                  value={courseFormData.department}
+                  onChange={(e) => setCourseFormData({ ...courseFormData, department: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">请选择学院</option>
+                  {[...new Set(majors.map((item) => item.department))].map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex space-x-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowAddCourse(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => setShowAddCourse(false)}>
                 取消
               </Button>
-              <Button onClick={handleAddCourse} className="flex-1">
+              <Button onClick={handleAddCourse}>
                 <Plus className="w-4 h-4 mr-2" />
                 创建课程
               </Button>

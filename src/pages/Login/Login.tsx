@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, GraduationCap, Building2, Lock, AlertCircle, X, UserPlus } from 'lucide-react';
-import { useAuthStore, useUserManagementStore, useGradeStore } from '@/store/useStore';
+import { User, GraduationCap, Building2, Lock, AlertCircle, X, UserPlus, RefreshCw } from 'lucide-react';
+import { useAuthStore, useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
+import { generateCaptcha } from '@/utils/captcha';
 
 type IdentityType = 'student' | 'teacher' | 'admin';
 
@@ -10,8 +11,11 @@ const Login = () => {
   const [identity, setIdentity] = useState<IdentityType>('student');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captcha, setCaptcha] = useState(generateCaptcha);
   const [error, setError] = useState('');
   const [showRegister, setShowRegister] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   const [registerForm, setRegisterForm] = useState({
     name: '',
     username: '',
@@ -20,34 +24,57 @@ const Login = () => {
     idCard: '',
     classId: '',
   });
-  const { login } = useAuthStore();
-  const { addUser } = useUserManagementStore();
-  const { classes } = useGradeStore();
+  const { login, isLoggedIn } = useAuthStore();
+  const { addUser, classes, showToast } = useAppStore();
   const navigate = useNavigate();
+
+  const refreshCaptcha = () => {
+    setCaptcha(generateCaptcha());
+    setCaptchaInput('');
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!username || !password) {
       setError('请输入账号和密码');
       return;
     }
 
+    if (Number(captchaInput) !== captcha.answer) {
+      setError('验证码错误');
+      refreshCaptcha();
+      return;
+    }
+
     const success = login(username, password, identity);
     if (success) {
+      showToast('登录成功', 'success');
       navigate('/dashboard');
     } else {
-      setError('账号或密码错误');
+      setError('账号、密码或身份不匹配');
+      refreshCaptcha();
     }
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!registerForm.name || !registerForm.username || !registerForm.password || !registerForm.idCard) {
       setError('请填写完整信息');
+      return;
+    }
+
+    if (!/^\d{17}[\dXx]$/.test(registerForm.idCard.trim())) {
+      setError('请输入18位身份证号');
       return;
     }
 
@@ -67,11 +94,14 @@ const Login = () => {
       password: registerForm.password,
       role: 'student',
       classId: registerForm.classId || undefined,
+      idCard: registerForm.idCard.trim(),
     });
 
     if (success) {
-      alert('注册成功，请登录');
+      showToast('注册成功，请登录', 'success');
       setShowRegister(false);
+      setIdentity('student');
+      setUsername(registerForm.username);
       setRegisterForm({
         name: '',
         username: '',
@@ -81,7 +111,7 @@ const Login = () => {
         classId: '',
       });
     } else {
-      setError('用户名已存在');
+      setError('学号已存在');
     }
   };
 
@@ -97,7 +127,7 @@ const Login = () => {
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
       </div>
-      
+
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {showRegister ? (
@@ -106,7 +136,7 @@ const Login = () => {
                 <h1 className="text-2xl font-bold text-white">学生注册</h1>
                 <p className="text-primary-100 mt-2">填写信息完成注册</p>
               </div>
-              
+
               <div className="p-6">
                 <form onSubmit={handleRegister}>
                   <div className="space-y-4">
@@ -136,7 +166,7 @@ const Login = () => {
                         type="text"
                         value={registerForm.idCard}
                         onChange={(e) => setRegisterForm({ ...registerForm, idCard: e.target.value })}
-                        placeholder="请输入身份证号"
+                        placeholder="请输入18位身份证号"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
@@ -149,7 +179,9 @@ const Login = () => {
                       >
                         <option value="">请选择班级</option>
                         {classes.map((cls) => (
-                          <option key={cls.id} value={cls.id}>{cls.name}</option>
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -173,7 +205,7 @@ const Login = () => {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
-                    
+
                     {error && (
                       <div className="flex items-center text-red-600 bg-red-50 px-4 py-2 rounded-lg">
                         <AlertCircle className="w-4 h-4 mr-2" />
@@ -181,7 +213,7 @@ const Login = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex space-x-3 mt-6">
                     <Button variant="secondary" size="lg" className="flex-1" onClick={() => setShowRegister(false)}>
                       <X className="w-4 h-4 mr-2" />
@@ -201,12 +233,13 @@ const Login = () => {
                 <h1 className="text-2xl font-bold text-white">教务管理系统</h1>
                 <p className="text-primary-100 mt-2">请选择身份登录</p>
               </div>
-              
+
               <div className="p-6">
                 <div className="flex justify-center space-x-4 mb-6">
                   {identityOptions.map((option) => (
                     <button
                       key={option.value}
+                      type="button"
                       onClick={() => setIdentity(option.value)}
                       className={`flex flex-col items-center p-4 rounded-xl transition-all ${
                         identity === option.value
@@ -219,7 +252,7 @@ const Login = () => {
                     </button>
                   ))}
                 </div>
-                
+
                 <form onSubmit={handleSubmit}>
                   <div className="space-y-4">
                     <div>
@@ -232,12 +265,18 @@ const Login = () => {
                           type="text"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          placeholder={identity === 'student' ? '请输入学号' : identity === 'teacher' ? '请输入教师编号' : '请输入账号'}
+                          placeholder={
+                            identity === 'student'
+                              ? '请输入学号'
+                              : identity === 'teacher'
+                                ? '请输入教师编号'
+                                : '请输入账号'
+                          }
                           className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                         />
                       </div>
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
                       <div className="relative">
@@ -251,7 +290,29 @@ const Login = () => {
                         />
                       </div>
                     </div>
-                    
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">验证码</label>
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={captchaInput}
+                          onChange={(e) => setCaptchaInput(e.target.value)}
+                          placeholder="请输入计算结果"
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={refreshCaptcha}
+                          className="px-3 min-w-[108px] rounded-lg bg-primary-50 text-primary-700 font-semibold border border-primary-100 hover:bg-primary-100"
+                          title="点击刷新"
+                        >
+                          {captcha.question}
+                          <RefreshCw className="inline w-3 h-3 ml-1 opacity-60" />
+                        </button>
+                      </div>
+                    </div>
+
                     {error && (
                       <div className="flex items-center text-red-600 bg-red-50 px-4 py-2 rounded-lg">
                         <AlertCircle className="w-4 h-4 mr-2" />
@@ -259,28 +320,46 @@ const Login = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   <Button type="submit" variant="primary" size="lg" className="w-full mt-6">
                     登录
                   </Button>
                 </form>
-                
-                <div className="mt-6 text-center">
-                  {identity === 'student' && (
+
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  {identity === 'student' ? (
                     <button
-                      onClick={() => setShowRegister(true)}
-                      className="text-primary-600 hover:text-primary-700 text-sm font-medium mb-4"
+                      onClick={() => {
+                        setShowRegister(true);
+                        setError('');
+                      }}
+                      className="text-primary-600 hover:text-primary-700 font-medium"
                     >
                       <UserPlus className="w-4 h-4 inline mr-1" />
                       学生注册
                     </button>
+                  ) : (
+                    <span />
                   )}
-                  <p className="text-sm text-gray-500">
-                    默认密码: 123456
-                  </p>
+                  <button
+                    onClick={() => setShowForgot(true)}
+                    className="text-gray-500 hover:text-primary-600"
+                  >
+                    忘记密码？
+                  </button>
+                </div>
+
+                {showForgot && (
+                  <div className="mt-4 text-sm bg-amber-50 text-amber-800 rounded-lg px-4 py-3">
+                    请联系教务管理员重置密码。演示账号默认密码为 123456。
+                  </div>
+                )}
+
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-gray-500">演示账号默认密码: 123456</p>
                   <div className="flex justify-center space-x-6 mt-4 text-xs text-gray-400">
                     <span>学生: 2024001</span>
-                    <span>老师: t001</span>
+                    <span>老师: t001 / t003</span>
                     <span>教务: admin</span>
                   </div>
                 </div>

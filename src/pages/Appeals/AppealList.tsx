@@ -1,78 +1,54 @@
 import { useState } from 'react';
 import { Search, Eye, Check, X } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useAppealStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 import Modal from '@/components/Modal/Modal';
 import { Appeal, AppealStatus } from '@/types';
+import { appealStatusLabels } from '@/utils/labels';
 
 const AppealList = () => {
-  const { user } = useAuthStore();
-  const { getAppeals, reviewAppeal } = useAppealStore();
-  
-  const [filters, setFilters] = useState({
-    classId: '',
-    courseId: '',
-    status: '',
-  });
+  const { user, getAppeals, reviewAppeal, showToast } = useAppStore();
+
+  const [filters, setFilters] = useState({ status: '' });
   const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [reviewComment, setReviewComment] = useState('');
 
   const getFilteredAppeals = () => {
-    const params: Record<string, string> = {};
-    
-    if (user?.role === 'student') {
-      params.studentId = user.id;
-    } else if (user?.role === 'homeroom_teacher' && user.classId) {
-      params.classId = user.classId;
-    } else if (user?.role === 'teacher') {
-      params.teacherId = user.id;
-    }
-    
-    if (filters.classId) params.classId = filters.classId;
-    if (filters.courseId) params.courseId = filters.courseId;
+    const params: { studentId?: string; classId?: string; teacherId?: string; status?: AppealStatus } = {};
+    if (user?.role === 'student') params.studentId = user.id;
+    else if (user?.role === 'homeroom_teacher' && user.classId) params.classId = user.classId;
+    else if (user?.role === 'teacher') params.teacherId = user.id;
     if (filters.status) params.status = filters.status as AppealStatus;
-    
     return getAppeals(params);
   };
 
   const appeals = getFilteredAppeals();
 
   const getStatusBadge = (status: AppealStatus) => {
-    switch (status) {
-      case 'pending':
-        return <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full">待审核</span>;
-      case 'reviewing':
-        return <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">审核中</span>;
-      case 'approved':
-        return <span className="px-2 py-1 text-green-100 text-green-700 rounded-full">已批准</span>;
-      case 'rejected':
-        return <span className="px-2 py-1 text-red-100 text-red-700 rounded-full">已驳回</span>;
-      default:
-        return null;
-    }
+    const map = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      reviewing: 'bg-blue-100 text-blue-700',
+      approved: 'bg-green-100 text-green-700',
+      rejected: 'bg-red-100 text-red-700',
+    };
+    return <span className={`px-2 py-1 text-xs rounded-full ${map[status]}`}>{appealStatusLabels[status]}</span>;
   };
 
-  const canReview = user?.role === 'homeroom_teacher' || user?.role === 'admin' || user?.role === 'teacher';
-  
+  const canReview =
+    (user?.role === 'homeroom_teacher' || user?.role === 'admin' || user?.role === 'teacher') &&
+    selectedAppeal &&
+    selectedAppeal.status !== 'approved' &&
+    selectedAppeal.status !== 'rejected';
+
   const handleReview = (status: AppealStatus) => {
-    if (!selectedAppeal) return;
-    
-    let reviewerRole = '';
-    if (user?.role === 'homeroom_teacher') {
-      reviewerRole = 'homeroom_teacher';
-    } else if (user?.role === 'teacher') {
-      reviewerRole = 'teacher';
-    } else if (user?.role === 'admin') {
-      reviewerRole = 'admin';
-    }
-    
-    reviewAppeal(selectedAppeal.id, status, reviewComment || undefined, reviewerRole);
+    if (!selectedAppeal || !user) return;
+    reviewAppeal(selectedAppeal.id, status, reviewComment || undefined, user.role);
+    showToast(status === 'approved' ? '申诉已批准，成绩已更新' : '申诉已驳回', status === 'approved' ? 'success' : 'warning');
     setIsModalOpen(false);
     setSelectedAppeal(null);
     setReviewComment('');
-    alert(status === 'approved' ? '申诉已批准' : '申诉已驳回');
   };
 
   return (
@@ -91,7 +67,7 @@ const AppealList = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                onChange={(e) => setFilters({ status: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
                 <option value="">全部状态</option>
@@ -104,7 +80,7 @@ const AppealList = () => {
           )}
         </div>
         <div className="flex justify-end mt-4">
-          <Button variant="secondary" onClick={() => setFilters({ classId: '', courseId: '', status: '' })}>
+          <Button variant="secondary" onClick={() => setFilters({ status: '' })}>
             <Search className="w-4 h-4 mr-2" />
             重置
           </Button>
@@ -140,18 +116,16 @@ const AppealList = () => {
                     <td className="px-6 py-4">{getStatusBadge(appeal.status)}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{appeal.createdAt}</td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedAppeal(appeal);
-                            setIsModalOpen(true);
-                          }}
-                          className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="查看详情"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedAppeal(appeal);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-2 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                        title="查看详情"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -204,7 +178,7 @@ const AppealList = () => {
                 <p className="text-gray-800">{selectedAppeal.createdAt}</p>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-500">申诉理由</label>
               <p className="text-gray-800 whitespace-pre-wrap">{selectedAppeal.reason}</p>
@@ -216,14 +190,12 @@ const AppealList = () => {
                 <p className="text-gray-800">{selectedAppeal.homeroomComment}</p>
               </div>
             )}
-
             {selectedAppeal.teacherComment && (
               <div>
                 <label className="block text-sm font-medium text-gray-500">任课老师意见</label>
                 <p className="text-gray-800">{selectedAppeal.teacherComment}</p>
               </div>
             )}
-
             {selectedAppeal.adminComment && (
               <div>
                 <label className="block text-sm font-medium text-gray-500">教务意见</label>
@@ -231,7 +203,7 @@ const AppealList = () => {
               </div>
             )}
 
-            {canReview && selectedAppeal.status !== 'approved' && selectedAppeal.status !== 'rejected' && (
+            {canReview && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">审核意见</label>
@@ -243,7 +215,6 @@ const AppealList = () => {
                     placeholder="请填写审核意见..."
                   />
                 </div>
-
                 <div className="flex justify-end space-x-4">
                   <Button variant="danger" onClick={() => handleReview('rejected')}>
                     <X className="w-4 h-4 mr-2" />

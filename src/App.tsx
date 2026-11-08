@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useStore';
+import ToastContainer from '@/components/Toast/ToastContainer';
 import Login from '@/pages/Login/Login';
 import Dashboard from '@/pages/Dashboard/Dashboard';
 import GradeList from '@/pages/Grades/GradeList';
@@ -117,7 +118,7 @@ const App = () => {
         <Route 
           path="/exam" 
           element={
-            <ProtectedRoute requireRole={['admin']}>
+            <ProtectedRoute>
               <ExamSchedule />
             </ProtectedRoute>
           } 
@@ -134,6 +135,7 @@ const App = () => {
         
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <ToastContainer />
     </Router>
   );
 };

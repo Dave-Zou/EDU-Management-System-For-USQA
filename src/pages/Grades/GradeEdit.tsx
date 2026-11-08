@@ -2,23 +2,25 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useGradeStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
+import { Grade } from '@/types';
 
 const GradeEdit = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuthStore();
-  const { getGrades, editGrade } = useGradeStore();
+  const { user, getGrades, editGrade, showToast } = useAppStore();
   const navigate = useNavigate();
 
+  const [grade, setGrade] = useState<Grade | undefined>();
   const [score, setScore] = useState('');
   const [fullScore, setFullScore] = useState('');
 
   useEffect(() => {
-    const grade = getGrades({}).find((g) => g.id === id);
-    if (grade) {
-      setScore(String(grade.score));
-      setFullScore(String(grade.fullScore));
+    const found = getGrades({}).find((item) => item.id === id);
+    if (found) {
+      setGrade(found);
+      setScore(String(found.score));
+      setFullScore(String(found.fullScore));
     }
   }, [id, getGrades]);
 
@@ -41,21 +43,22 @@ const GradeEdit = () => {
 
   const handleSubmit = () => {
     if (!score || !fullScore) {
-      alert('请填写成绩和满分');
+      showToast('请填写成绩和满分', 'warning');
       return;
     }
 
     if (Number(score) > Number(fullScore)) {
-      alert('成绩不能超过满分');
+      showToast('成绩不能超过满分', 'warning');
       return;
     }
 
     editGrade(id!, {
       score: Number(score),
       fullScore: Number(fullScore),
+      status: 'pending',
     });
 
-    alert('成绩修改成功');
+    showToast('成绩已修改，需重新复核', 'success');
     navigate('/grades');
   };
 
@@ -78,6 +81,26 @@ const GradeEdit = () => {
 
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          {grade && (
+            <div className="mb-6 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-500">学生</p>
+                <p className="font-medium text-gray-800">{grade.studentName}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">课程</p>
+                <p className="font-medium text-gray-800">{grade.courseName}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">班级</p>
+                <p className="font-medium text-gray-800">{grade.className}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">任课老师</p>
+                <p className="font-medium text-gray-800">{grade.teacherName}</p>
+              </div>
+            </div>
+          )}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">成绩</label>

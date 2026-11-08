@@ -2,64 +2,86 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore, useGradeStore } from '@/store/useStore';
+import { useAppStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 import { User } from '@/types';
 
 const GradeRegister = () => {
-  const { user } = useAuthStore();
-  const { courses, classes, users, addGrade } = useGradeStore();
+  const { user, courses, classes, users, addGrade, showToast } = useAppStore();
   const navigate = useNavigate();
 
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [students, setStudents] = useState<{ student: User; score: number }[]>([]);
+  const [students, setStudents] = useState<{ student: User; score: string }[]>([]);
   const [fullScore, setFullScore] = useState(100);
 
   const handleClassChange = (classId: string) => {
     setSelectedClass(classId);
-    setStudents([]);
     if (classId) {
-      const classStudents = users.filter((u) => u.role === 'student' && u.classId === classId);
-      setStudents(classStudents.map((student) => ({ student, score: 0 })));
+      const classStudents = users.filter((item) => item.role === 'student' && item.classId === classId);
+      setStudents(classStudents.map((student) => ({ student, score: '' })));
+    } else {
+      setStudents([]);
     }
   };
 
-  const handleScoreChange = (index: number, score: number) => {
-    const newStudents = [...students];
-    newStudents[index].score = score;
-    setStudents(newStudents);
+  const handleScoreChange = (index: number, score: string) => {
+    const next = [...students];
+    next[index].score = score;
+    setStudents(next);
   };
 
   const handleSubmit = () => {
     if (!selectedClass || !selectedCourse) {
-      alert('请选择班级和课程');
+      showToast('请选择班级和课程', 'warning');
       return;
     }
 
-    const course = courses.find((c) => c.id === selectedCourse);
-    const cls = classes.find((c) => c.id === selectedClass);
+    const course = courses.find((item) => item.id === selectedCourse);
+    const cls = classes.find((item) => item.id === selectedClass);
+    let successCount = 0;
+    let skipCount = 0;
+    const errors: string[] = [];
 
     students.forEach((item) => {
-      if (item.score > 0) {
-        addGrade({
-          studentId: item.student.id,
-          studentName: item.student.name,
-          classId: selectedClass,
-          className: cls?.name || '',
-          courseId: selectedCourse,
-          courseName: course?.name || '',
-          teacherId: user?.id || '',
-          teacherName: user?.name || '',
-          score: item.score,
-          fullScore,
-          status: 'pending',
-        });
+      if (item.score === '') return;
+      const score = Number(item.score);
+      if (Number.isNaN(score) || score < 0 || score > fullScore) {
+        errors.push(`${item.student.name} 的成绩无效`);
+        return;
+      }
+      const result = addGrade({
+        studentId: item.student.id,
+        studentName: item.student.name,
+        classId: selectedClass,
+        className: cls?.name || '',
+        courseId: selectedCourse,
+        courseName: course?.name || '',
+        teacherId: user?.id || '',
+        teacherName: user?.name || '',
+        score,
+        fullScore,
+        status: 'pending',
+      });
+      if (result.ok) successCount += 1;
+      else {
+        skipCount += 1;
+        errors.push(result.message);
       }
     });
 
-    alert('成绩登记成功');
-    navigate('/grades');
+    if (successCount === 0 && skipCount === 0 && errors.length === 0) {
+      showToast('请至少录入一名学生的成绩', 'warning');
+      return;
+    }
+
+    if (successCount > 0) {
+      showToast(`成功登记 ${successCount} 条成绩${skipCount ? `，跳过 ${skipCount} 条重复` : ''}`, 'success');
+      navigate('/grades');
+      return;
+    }
+
+    showToast(errors[0] || '登记失败', 'error');
   };
 
   const canRegister = user?.role === 'teacher' || user?.role === 'admin';
@@ -91,7 +113,7 @@ const GradeRegister = () => {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">登记成绩</h2>
-            <p className="text-gray-500 mt-1">为学生录入成绩</p>
+            <p className="text-gray-500 mt-1">为学生录入成绩，提交后进入待复核</p>
           </div>
         </div>
       </div>
@@ -107,7 +129,9 @@ const GradeRegister = () => {
             >
               <option value="">请选择班级</option>
               {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>{cls.name}</option>
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
               ))}
             </select>
           </div>
@@ -120,7 +144,9 @@ const GradeRegister = () => {
             >
               <option value="">请选择课程</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.id}>{course.name}</option>
+                <option key={course.id} value={course.id}>
+                  {course.name}
+                </option>
               ))}
             </select>
           </div>
@@ -128,6 +154,7 @@ const GradeRegister = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">满分</label>
             <input
               type="number"
+              min={1}
               value={fullScore}
               onChange={(e) => setFullScore(Number(e.target.value))}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -159,10 +186,10 @@ const GradeRegister = () => {
                         type="number"
                         min="0"
                         max={fullScore}
-                        value={item.score || ''}
-                        onChange={(e) => handleScoreChange(index, Number(e.target.value))}
-                        placeholder="输入成绩"
-                        className="w-24 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                        value={item.score}
+                        onChange={(e) => handleScoreChange(index, e.target.value)}
+                        placeholder="输入成绩，可填 0"
+                        className="w-32 px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                       />
                     </td>
                   </tr>

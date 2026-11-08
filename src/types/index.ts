@@ -8,6 +8,7 @@ export interface User {
   password: string;
   classId?: string;
   department?: string;
+  idCard?: string;
 }
 
 export type GradeStatus = 'pending' | 'reviewed' | 'rejected';
@@ -127,4 +128,25 @@ export interface Major {
   id: string;
   name: string;
   department: string;
+}
+
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+}
+
+export type NotificationType = 'info' | 'warning' | 'success';
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  content: string;
+  type: NotificationType;
+  time: string;
+  read: boolean;
+  targetUserId?: string;
+  targetRole?: UserRole | 'all';
 }
