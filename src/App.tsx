@@ -63,7 +63,7 @@ const App = () => {
         <Route 
           path="/grades/edit/:id" 
           element={
-            <ProtectedRoute requireRole={['admin']}>
+            <ProtectedRoute requireRole={['admin', 'teacher']}>
               <GradeEdit />
             </ProtectedRoute>
           } 
@@ -117,7 +117,7 @@ const App = () => {
         <Route 
           path="/exam" 
           element={
-            <ProtectedRoute requireRole={['admin']}>
+            <ProtectedRoute>
               <ExamSchedule />
             </ProtectedRoute>
           } 

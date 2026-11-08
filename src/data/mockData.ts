@@ -1,4 +1,4 @@
-import { User, Course, Class, Grade, Schedule } from '@/types';
+import { User, Course, Class, Grade, Schedule, Major, Exam, Appeal } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -85,10 +85,20 @@ export const mockCourses: Course[] = [
   { id: 'course006', name: '软件工程', code: 'CS103', credit: 4, department: '计算机学院' },
 ];
 
+export const mockMajors: Major[] = [
+  { id: 'M001', name: '计算机科学与技术', department: '计算机学院' },
+  { id: 'M002', name: '软件工程', department: '计算机学院' },
+  { id: 'M003', name: '电子信息工程', department: '电子工程学院' },
+  { id: 'M004', name: '通信工程', department: '电子工程学院' },
+  { id: 'M005', name: '工商管理', department: '商学院' },
+  { id: 'M006', name: '会计学', department: '商学院' },
+  { id: 'M007', name: '数学与应用数学', department: '数学系' },
+];
+
 export const mockClasses: Class[] = [
-  { id: 'c001', name: '计算机2401班', grade: '2024', major: '计算机科学', homeroomTeacherId: 't003' },
-  { id: 'c002', name: '数学2401班', grade: '2024', major: '数学', homeroomTeacherId: 't004' },
-  { id: 'c003', name: '计算机2402班', grade: '2024', major: '计算机科学', homeroomTeacherId: 't003' },
+  { id: 'c001', name: '计算机2401班', grade: '2024', major: '计算机科学与技术', homeroomTeacherId: 't003' },
+  { id: 'c002', name: '数学2401班', grade: '2024', major: '数学与应用数学', homeroomTeacherId: 't004' },
+  { id: 'c003', name: '计算机2402班', grade: '2024', major: '计算机科学与技术', homeroomTeacherId: '' },
 ];
 
 export const mockGrades: Grade[] = [
@@ -107,8 +117,8 @@ export const mockGrades: Grade[] = [
     gradeLevel: '良好',
     status: 'reviewed',
     reviewComment: '成绩良好',
-    createdAt: '2024-01-10',
-    updatedAt: '2024-01-12',
+    createdAt: '2026-10-10',
+    updatedAt: '2026-10-12',
   },
   {
     id: 'g002',
@@ -125,8 +135,8 @@ export const mockGrades: Grade[] = [
     gradeLevel: '优秀',
     status: 'reviewed',
     reviewComment: '成绩优秀',
-    createdAt: '2024-01-11',
-    updatedAt: '2024-01-13',
+    createdAt: '2026-10-11',
+    updatedAt: '2026-10-13',
   },
   {
     id: 'g003',
@@ -142,8 +152,8 @@ export const mockGrades: Grade[] = [
     fullScore: 100,
     gradeLevel: '中等',
     status: 'pending',
-    createdAt: '2024-01-14',
-    updatedAt: '2024-01-14',
+    createdAt: '2026-10-14',
+    updatedAt: '2026-10-14',
   },
   {
     id: 'g004',
@@ -159,8 +169,8 @@ export const mockGrades: Grade[] = [
     fullScore: 100,
     gradeLevel: '良好',
     status: 'pending',
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-15',
+    createdAt: '2026-10-15',
+    updatedAt: '2026-10-15',
   },
   {
     id: 'g005',
@@ -177,8 +187,8 @@ export const mockGrades: Grade[] = [
     gradeLevel: '优秀',
     status: 'rejected',
     reviewComment: '成绩异常，需重新核对',
-    createdAt: '2024-01-12',
-    updatedAt: '2024-01-16',
+    createdAt: '2026-10-12',
+    updatedAt: '2026-10-16',
   },
   {
     id: 'g006',
@@ -195,8 +205,8 @@ export const mockGrades: Grade[] = [
     gradeLevel: '及格',
     status: 'reviewed',
     reviewComment: '及格',
-    createdAt: '2024-01-13',
-    updatedAt: '2024-01-15',
+    createdAt: '2026-10-13',
+    updatedAt: '2026-10-15',
   },
 ];
 
@@ -212,8 +222,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 1,
     period: 1,
     classroom: 'A101',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's002',
@@ -226,8 +236,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 1,
     period: 3,
     classroom: 'B201',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's003',
@@ -240,8 +250,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 2,
     period: 2,
     classroom: 'C301',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's004',
@@ -254,8 +264,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 3,
     period: 1,
     classroom: 'B201',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's005',
@@ -268,8 +278,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 1,
     period: 2,
     classroom: 'A102',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's006',
@@ -282,8 +292,8 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 2,
     period: 1,
     classroom: 'A102',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
   {
     id: 's007',
@@ -296,19 +306,78 @@ export const mockSchedule: Schedule[] = [
     dayOfWeek: 4,
     period: 3,
     classroom: 'C302',
-    startDate: '2024-02-26',
-    endDate: '2024-06-28',
+    startDate: '2026-09-07',
+    endDate: '2027-01-15',
   },
 ];
+
+export const mockExams: Exam[] = [
+  {
+    id: 'E001',
+    courseId: 'course001',
+    courseName: '高等数学',
+    classId: 'c001',
+    className: '计算机2401班',
+    teacherId: 't002',
+    teacherName: '李老师',
+    examType: 'midterm',
+    examDate: '2026-11-16',
+    startTime: '09:00',
+    endTime: '11:00',
+    classroom: 'A101',
+    description: '期中考试',
+    createdAt: '2026-10-20',
+  },
+  {
+    id: 'E002',
+    courseId: 'course003',
+    courseName: '计算机基础',
+    classId: 'c001',
+    className: '计算机2401班',
+    teacherId: 't001',
+    teacherName: '孙老师',
+    examType: 'quiz',
+    examDate: '2026-11-20',
+    startTime: '14:00',
+    endTime: '15:30',
+    classroom: 'B201',
+    createdAt: '2026-10-25',
+  },
+];
+
+export const mockAppeals: Appeal[] = [
+  {
+    id: 'ap001',
+    gradeId: 'g002',
+    studentId: 'u001',
+    studentName: '张三',
+    classId: 'c001',
+    className: '计算机2401班',
+    courseId: 'course003',
+    courseName: '计算机基础',
+    teacherId: 't001',
+    teacherName: '孙老师',
+    originalScore: 92,
+    requestedScore: 98,
+    reason: '实验报告漏计一次平时分，申请按 98 分复核。',
+    authCode: 'TEACHER123',
+    status: 'pending',
+    createdAt: '2026-11-02',
+    updatedAt: '2026-11-02',
+  },
+];
+
+export const appealAuthCodes = ['TEACHER123', 'ADMIN456', 'AUTH789'];
 
 export const generateId = (): string => {
   return Math.random().toString(36).substring(2, 9);
 };
 
-export const getGradeLevel = (score: number): string => {
-  if (score >= 90) return '优秀';
-  if (score >= 80) return '良好';
-  if (score >= 70) return '中等';
-  if (score >= 60) return '及格';
+export const getGradeLevel = (score: number, fullScore = 100): string => {
+  const percent = fullScore > 0 ? (score / fullScore) * 100 : score;
+  if (percent >= 90) return '优秀';
+  if (percent >= 80) return '良好';
+  if (percent >= 70) return '中等';
+  if (percent >= 60) return '及格';
   return '不及格';
 };

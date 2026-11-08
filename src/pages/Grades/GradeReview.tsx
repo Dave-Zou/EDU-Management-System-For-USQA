@@ -17,6 +17,7 @@ const GradeReview = () => {
   const [comment, setComment] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [batchAction, setBatchAction] = useState<'reviewed' | 'rejected'>('reviewed');
   const [batchComment, setBatchComment] = useState('');
 
   const getFilteredGrades = () => {
@@ -102,7 +103,7 @@ const GradeReview = () => {
             <Button 
               variant="success" 
               size="sm" 
-              onClick={() => setIsBatchModalOpen(true)}
+              onClick={() => { setBatchAction('reviewed'); setIsBatchModalOpen(true); }}
               disabled={selectedIds.length === 0}
             >
               <Check className="w-4 h-4 mr-1" />
@@ -111,7 +112,7 @@ const GradeReview = () => {
             <Button 
               variant="danger" 
               size="sm" 
-              onClick={() => setIsBatchModalOpen(true)}
+              onClick={() => { setBatchAction('rejected'); setIsBatchModalOpen(true); }}
               disabled={selectedIds.length === 0}
             >
               <X className="w-4 h-4 mr-1" />
@@ -193,7 +194,7 @@ const GradeReview = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 9 : 8} className="px-6 py-12 text-center text-gray-400">
                     暂无待复核成绩
                   </td>
                 </tr>
@@ -258,11 +259,11 @@ const GradeReview = () => {
         )}
       </Modal>
 
-      <Modal isOpen={isBatchModalOpen} onClose={() => setIsBatchModalOpen(false)} title="批量审核" size="lg">
+      <Modal isOpen={isBatchModalOpen} onClose={() => setIsBatchModalOpen(false)} title={batchAction === 'reviewed' ? '批量通过' : '批量驳回'} size="lg">
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
             <p className="text-blue-800">
-              即将批量审核 <span className="font-bold">{selectedIds.length}</span> 条成绩
+              即将{batchAction === 'reviewed' ? '通过' : '驳回'} <span className="font-bold">{selectedIds.length}</span> 条成绩
             </p>
           </div>
           
@@ -281,13 +282,9 @@ const GradeReview = () => {
             <Button variant="secondary" onClick={() => setIsBatchModalOpen(false)}>
               取消
             </Button>
-            <Button variant="danger" onClick={() => handleBatchReview('rejected')}>
-              <X className="w-4 h-4 mr-2" />
-              一键驳回
-            </Button>
-            <Button variant="success" onClick={() => handleBatchReview('reviewed')}>
-              <Check className="w-4 h-4 mr-2" />
-              一键通过
+            <Button variant={batchAction === 'reviewed' ? 'success' : 'danger'} onClick={() => handleBatchReview(batchAction)}>
+              {batchAction === 'reviewed' ? <Check className="w-4 h-4 mr-2" /> : <X className="w-4 h-4 mr-2" />}
+              确认{batchAction === 'reviewed' ? '通过' : '驳回'}
             </Button>
           </div>
         </div>

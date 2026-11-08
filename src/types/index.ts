@@ -8,6 +8,7 @@ export interface User {
   password: string;
   classId?: string;
   department?: string;
+  idCard?: string;
 }
 
 export type GradeStatus = 'pending' | 'reviewed' | 'rejected';
