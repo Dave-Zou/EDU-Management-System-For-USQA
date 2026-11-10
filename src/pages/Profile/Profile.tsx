@@ -1,47 +1,40 @@
 import { useState } from 'react';
-import { User, Lock, Mail, GraduationCap, Building2 } from 'lucide-react';
+import { User, Lock, Mail, GraduationCap, Building2, KeyRound, Copy, RefreshCw } from 'lucide-react';
 import Layout from '@/components/Layout/Layout';
-import { useAuthStore } from '@/store/useStore';
+import { useAuthStore, useGradeStore, useAppStore, useToastStore } from '@/store/useStore';
 import Button from '@/components/Button/Button';
 import Modal from '@/components/Modal/Modal';
+import { ROLE_LABELS } from '@/utils/labels';
 
 const Profile = () => {
-  const { user } = useAuthStore();
+  const { user, changePassword, syncUser } = useAuthStore();
+  const { classes } = useGradeStore();
+  const { authCodes, generateAuthCode, resetDemoData } = useAppStore();
+  const { showToast } = useToastStore();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const getRoleLabel = () => {
-    if (!user) return '';
-    switch (user.role) {
-      case 'student':
-        return '学生';
-      case 'teacher':
-        return '任课老师';
-      case 'homeroom_teacher':
-        return '班主任老师';
-      case 'admin':
-        return '教务管理员';
-      default:
-        return '';
-    }
-  };
+  const className = classes.find((c) => c.id === user?.classId)?.name;
+  const myCodes = authCodes.filter((c) => user?.role === 'admin' || c.createdBy === user?.id);
+  const canManageCodes = user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'homeroom_teacher';
 
   const handlePasswordChange = () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      alert('请填写所有密码字段');
+      showToast('请填写所有密码字段', 'error');
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('新密码和确认密码不一致');
+      showToast('新密码和确认密码不一致', 'error');
       return;
     }
-    if (oldPassword !== '123456') {
-      alert('旧密码不正确');
+    const result = changePassword(oldPassword, newPassword);
+    if (!result.ok) {
+      showToast(result.message, 'error');
       return;
     }
-    alert('密码修改成功');
+    showToast('密码修改成功，下次请使用新密码登录', 'success');
     setIsPasswordModalOpen(false);
     setOldPassword('');
     setNewPassword('');
@@ -50,9 +43,9 @@ const Profile = () => {
 
   const infoItems = [
     { label: '姓名', value: user?.name, icon: User },
-    { label: '身份', value: getRoleLabel(), icon: GraduationCap },
+    { label: '身份', value: user ? ROLE_LABELS[user.role] : '', icon: GraduationCap },
     { label: '账号', value: user?.username, icon: Mail },
-    { label: '班级', value: user?.classId ? `班级ID: ${user.classId}` : '-', icon: Building2 },
+    { label: '班级', value: className || '-', icon: Building2 },
     { label: '部门', value: user?.department || '-', icon: Building2 },
   ];
 
@@ -64,7 +57,7 @@ const Profile = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center mb-6">
               <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mr-4">
@@ -72,7 +65,7 @@ const Profile = () => {
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-gray-800">{user?.name}</h3>
-                <p className="text-gray-500">{getRoleLabel()}</p>
+                <p className="text-gray-500">{user ? ROLE_LABELS[user.role] : ''}</p>
               </div>
             </div>
 
@@ -88,12 +81,68 @@ const Profile = () => {
               ))}
             </div>
           </div>
+
+          {canManageCodes && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <KeyRound className="w-5 h-5 mr-2" />
+                  申诉授权码
+                </h3>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (!user) return;
+                    const code = generateAuthCode(user.id, user.name);
+                    showToast(`已生成授权码 ${code}`, 'success');
+                  }}
+                >
+                  生成新授权码
+                </Button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">学生提交成绩申诉时需要填写授权码，请妥善发放。</p>
+              <div className="space-y-2">
+                {myCodes.length > 0 ? (
+                  myCodes.map((item) => (
+                    <div key={item.code} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-mono font-medium text-gray-800">{item.code}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.createdByName} · {item.createdAt}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="p-2 text-gray-500 hover:text-primary-600"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(item.code);
+                            showToast('已复制授权码', 'success');
+                          } catch {
+                            showToast('复制失败，请手动复制', 'error');
+                          }
+                        }}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-400">暂无授权码</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">账户安全</h3>
-            <Button variant="secondary" className="w-full flex items-center justify-center" onClick={() => setIsPasswordModalOpen(true)}>
+            <Button
+              variant="secondary"
+              className="w-full flex items-center justify-center"
+              onClick={() => setIsPasswordModalOpen(true)}
+            >
               <Lock className="w-4 h-4 mr-2" />
               修改密码
             </Button>
@@ -116,6 +165,26 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+          {user?.role === 'admin' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">演示数据</h3>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  if (confirm('将恢复初始演示数据，当前本地修改会丢失。')) {
+                    resetDemoData();
+                    syncUser();
+                    showToast('已恢复演示数据', 'success');
+                  }
+                }}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                恢复演示数据
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -137,7 +206,7 @@ const Profile = () => {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码"
+              placeholder="至少 6 位"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
@@ -155,9 +224,7 @@ const Profile = () => {
             <Button variant="secondary" onClick={() => setIsPasswordModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handlePasswordChange}>
-              确认修改
-            </Button>
+            <Button onClick={handlePasswordChange}>确认修改</Button>
           </div>
         </div>
       </Modal>

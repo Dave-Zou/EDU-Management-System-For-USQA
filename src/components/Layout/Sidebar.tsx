@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -13,7 +12,7 @@ import {
   Users,
   Clock,
 } from 'lucide-react';
-import { useAuthStore } from '@/store/useStore';
+import { useAuthStore, useUIStore } from '@/store/useStore';
 import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
@@ -21,7 +20,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ currentPage }: SidebarProps) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, mobileOpen, toggleCollapsed, setMobileOpen } = useUIStore();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
@@ -30,11 +29,17 @@ const Sidebar = ({ currentPage }: SidebarProps) => {
     navigate('/');
   };
 
+  const go = (path: string) => {
+    navigate(path);
+    setMobileOpen(false);
+  };
+
   const menuItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: '首页' },
     { path: '/grades', icon: GraduationCap, label: '成绩管理' },
     { path: '/appeals', icon: FileText, label: '申诉管理' },
     { path: '/schedule', icon: Calendar, label: '课表管理' },
+    { path: '/exam', icon: Clock, label: '考试安排' },
     { path: '/profile', icon: User, label: '个人中心' },
   ];
 
@@ -46,7 +51,6 @@ const Sidebar = ({ currentPage }: SidebarProps) => {
           { path: '/grades/register', icon: ClipboardList, label: '登记成绩' },
           { path: '/grades/review', icon: BookOpen, label: '复核成绩' },
           { path: '/schedule/arrange', icon: Calendar, label: '课程安排' },
-          { path: '/exam', icon: Clock, label: '考试安排' },
           { path: '/users', icon: Users, label: '用户管理' },
         ];
       case 'teacher':
@@ -58,46 +62,32 @@ const Sidebar = ({ currentPage }: SidebarProps) => {
     }
   };
 
+  const isActive = (path: string) => currentPage === path;
+
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-primary-600 text-white transition-all duration-300 z-50 ${
+      className={`fixed left-0 top-0 h-screen bg-primary-600 text-white transition-all duration-300 z-50 flex flex-col ${
         collapsed ? 'w-16' : 'w-56'
-      }`}
+      } ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
     >
-      <div className="flex items-center h-16 px-4 border-b border-primary-500">
-        {!collapsed && (
-          <div className="text-lg font-bold">教务管理系统</div>
-        )}
+      <div className="flex items-center h-16 px-4 border-b border-primary-500 shrink-0">
+        {!collapsed && <div className="text-lg font-bold truncate">教务管理系统</div>}
       </div>
 
-      <nav className="flex-1 py-4">
-        <ul className="space-y-2">
-          {menuItems.map((item) => (
+      <nav className="flex-1 py-4 overflow-y-auto">
+        <ul className="space-y-1">
+          {[...menuItems, ...roleBasedItems()].map((item) => (
             <li key={item.path}>
               <button
-                onClick={() => navigate(item.path)}
+                type="button"
+                onClick={() => go(item.path)}
                 className={`w-full flex items-center px-4 py-3 transition-colors ${
-                  currentPage === item.path
+                  isActive(item.path)
                     ? 'bg-primary-500 text-white'
                     : 'hover:bg-primary-500/50 text-gray-200'
                 }`}
               >
-                <item.icon className="w-5 h-5 mr-3" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            </li>
-          ))}
-          {roleBasedItems().map((item) => (
-            <li key={item.path}>
-              <button
-                onClick={() => navigate(item.path)}
-                className={`w-full flex items-center px-4 py-3 transition-colors ${
-                  currentPage === item.path
-                    ? 'bg-primary-500 text-white'
-                    : 'hover:bg-primary-500/50 text-gray-200'
-                }`}
-              >
-                <item.icon className="w-5 h-5 mr-3" />
+                <item.icon className="w-5 h-5 mr-3 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </button>
             </li>
@@ -105,19 +95,31 @@ const Sidebar = ({ currentPage }: SidebarProps) => {
         </ul>
       </nav>
 
-      <div className="border-t border-primary-500 p-4">
+      <div className="border-t border-primary-500 p-4 shrink-0 hidden md:block">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          type="button"
+          onClick={toggleCollapsed}
           className="w-full flex items-center justify-center py-2 text-gray-300 hover:text-white transition-colors"
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
         </button>
         <button
+          type="button"
           onClick={handleLogout}
           className="w-full flex items-center px-4 py-3 mt-2 text-gray-300 hover:text-white hover:bg-primary-500/50 transition-colors"
         >
-          <LogOut className="w-5 h-5 mr-3" />
+          <LogOut className="w-5 h-5 mr-3 shrink-0" />
           {!collapsed && <span>退出登录</span>}
+        </button>
+      </div>
+      <div className="border-t border-primary-500 p-4 shrink-0 md:hidden">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center px-4 py-3 text-gray-300 hover:text-white hover:bg-primary-500/50 transition-colors"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          <span>退出登录</span>
         </button>
       </div>
     </aside>

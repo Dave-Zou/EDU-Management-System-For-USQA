@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bell, Settings, X, FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAuthStore } from '@/store/useStore';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { Bell, Settings, X, FileText, AlertCircle, CheckCircle, Menu } from 'lucide-react';
+import { useAuthStore, useAppStore, useUIStore } from '@/store/useStore';
 import { useNavigate } from 'react-router-dom';
+import { ROLE_LABELS } from '@/utils/labels';
 
 interface Notification {
   id: string;
@@ -10,71 +11,164 @@ interface Notification {
   type: 'info' | 'warning' | 'success';
   time: string;
   read: boolean;
+  link?: string;
 }
-
-const getNotificationsByRole = (role: string): Notification[] => {
-  switch (role) {
-    case 'student':
-      return [
-        { id: 's1', title: '成绩已更新', content: '您的高等数学成绩已发布，请及时查看', type: 'info', time: '5分钟前', read: false },
-        { id: 's2', title: '课表调整通知', content: '下周一的计算机基础课程调整至B202教室', type: 'warning', time: '1小时前', read: false },
-        { id: 's3', title: '申诉审核结果', content: '您的成绩申诉已被批准，成绩已更新', type: 'success', time: '昨天', read: true },
-        { id: 's4', title: '新学期选课', content: '请在本周内完成新学期课程选择', type: 'info', time: '2天前', read: true },
-      ];
-    case 'teacher':
-      return [
-        { id: 't1', title: '成绩登记提醒', content: '您有3门课程的成绩尚未登记，请及时完成', type: 'warning', time: '10分钟前', read: false },
-        { id: 't2', title: '课程安排更新', content: '您下周一的课程调整至B202教室', type: 'info', time: '30分钟前', read: false },
-        { id: 't3', title: '学生申诉待处理', content: '有2条学生成绩申诉需要您审核', type: 'info', time: '2小时前', read: true },
-        { id: 't4', title: '教学评估通知', content: '请在本周内完成学生教学评估', type: 'info', time: '3天前', read: true },
-      ];
-    case 'homeroom_teacher':
-      return [
-        { id: 'h1', title: '班级成绩汇总', content: '您班级的期末成绩已全部提交，请复核', type: 'info', time: '15分钟前', read: false },
-        { id: 'h2', title: '学生申诉待审核', content: '有3条学生成绩申诉需要您审核', type: 'warning', time: '1小时前', read: false },
-        { id: 'h3', title: '班会通知', content: '请于周五下午组织班级会议', type: 'info', time: '昨天', read: true },
-        { id: 'h4', title: '学生考勤提醒', content: '本周有5名学生迟到，请关注', type: 'warning', time: '2天前', read: true },
-      ];
-    case 'admin':
-      return [
-        { id: 'a1', title: '成绩复核待处理', content: '有5条成绩需要您复核确认', type: 'warning', time: '5分钟前', read: false },
-        { id: 'a2', title: '课程安排完成', content: '新学期课表已全部安排完毕', type: 'success', time: '30分钟前', read: false },
-        { id: 'a3', title: '学生申诉汇总', content: '本周共收到8条成绩申诉', type: 'info', time: '1天前', read: true },
-        { id: 'a4', title: '系统维护通知', content: '系统将于本周日晚进行维护升级', type: 'warning', time: '3天前', read: true },
-      ];
-    default:
-      return [];
-  }
-};
 
 const Header = () => {
   const { user } = useAuthStore();
+  const { grades, appeals, exams, setMobileOpen } = {
+    ...useAppStore(),
+    setMobileOpen: useUIStore((s) => s.setMobileOpen),
+  };
   const navigate = useNavigate();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [readIds, setReadIds] = useState<string[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const getRoleLabel = () => {
-    if (!user) return '';
-    switch (user.role) {
-      case 'student':
-        return '学生';
-      case 'teacher':
-        return '任课老师';
-      case 'homeroom_teacher':
-        return '班主任老师';
-      case 'admin':
-        return '教务管理员';
-      default:
-        return '';
-    }
-  };
+  const notifications = useMemo<Notification[]>(() => {
+    if (!user) return [];
+    const items: Notification[] = [];
 
-  useEffect(() => {
-    if (user) {
-      setNotifications(getNotificationsByRole(user.role));
+    if (user.role === 'student') {
+      const mine = grades.filter((g) => g.studentId === user.id);
+      const pending = mine.filter((g) => g.status === 'pending').length;
+      const reviewed = mine.filter((g) => g.status === 'reviewed').length;
+      const myAppeals = appeals.filter((a) => a.studentId === user.id && a.status === 'pending').length;
+      const upcoming = exams.filter((e) => e.classId === user.classId && e.examDate >= new Date().toISOString().slice(0, 10));
+      if (pending) {
+        items.push({
+          id: 's-pending',
+          title: '成绩待复核',
+          content: `您有 ${pending} 条成绩正在复核中`,
+          type: 'info',
+          time: '刚刚',
+          read: false,
+          link: '/grades',
+        });
+      }
+      if (reviewed) {
+        items.push({
+          id: 's-reviewed',
+          title: '已发布成绩',
+          content: `已有 ${reviewed} 条成绩完成复核，可查看或申诉`,
+          type: 'success',
+          time: '今天',
+          read: false,
+          link: '/grades',
+        });
+      }
+      if (myAppeals) {
+        items.push({
+          id: 's-appeal',
+          title: '申诉处理中',
+          content: `您有 ${myAppeals} 条申诉等待审核`,
+          type: 'warning',
+          time: '今天',
+          read: false,
+          link: '/appeals',
+        });
+      }
+      upcoming.slice(0, 2).forEach((exam) => {
+        items.push({
+          id: `s-exam-${exam.id}`,
+          title: '即将考试',
+          content: `${exam.courseName} · ${exam.examDate} ${exam.startTime} ${exam.classroom}`,
+          type: 'warning',
+          time: exam.examDate,
+          read: false,
+          link: '/exam',
+        });
+      });
+    } else if (user.role === 'teacher') {
+      const pendingAppeals = appeals.filter((a) => a.teacherId === user.id && a.status !== 'approved' && a.status !== 'rejected').length;
+      const pendingGrades = grades.filter((g) => g.teacherId === user.id && g.status === 'pending').length;
+      if (pendingGrades) {
+        items.push({
+          id: 't-grades',
+          title: '成绩待复核',
+          content: `您登记的 ${pendingGrades} 条成绩尚未复核`,
+          type: 'info',
+          time: '今天',
+          read: false,
+          link: '/grades',
+        });
+      }
+      if (pendingAppeals) {
+        items.push({
+          id: 't-appeals',
+          title: '学生申诉待处理',
+          content: `有 ${pendingAppeals} 条成绩申诉需要您审核`,
+          type: 'warning',
+          time: '今天',
+          read: false,
+          link: '/appeals',
+        });
+      }
+    } else if (user.role === 'homeroom_teacher') {
+      const classGrades = grades.filter((g) => g.classId === user.classId && g.status === 'pending').length;
+      const classAppeals = appeals.filter((a) => a.classId === user.classId && a.status === 'pending').length;
+      if (classGrades) {
+        items.push({
+          id: 'h-review',
+          title: '班级成绩待复核',
+          content: `本班有 ${classGrades} 条成绩等待复核`,
+          type: 'warning',
+          time: '今天',
+          read: false,
+          link: '/grades/review',
+        });
+      }
+      if (classAppeals) {
+        items.push({
+          id: 'h-appeals',
+          title: '班级申诉待审核',
+          content: `本班有 ${classAppeals} 条申诉待处理`,
+          type: 'info',
+          time: '今天',
+          read: false,
+          link: '/appeals',
+        });
+      }
+    } else {
+      const pending = grades.filter((g) => g.status === 'pending').length;
+      const pendingAppeals = appeals.filter((a) => a.status === 'pending' || a.status === 'reviewing').length;
+      if (pending) {
+        items.push({
+          id: 'a-review',
+          title: '成绩复核待处理',
+          content: `全校有 ${pending} 条成绩待复核`,
+          type: 'warning',
+          time: '今天',
+          read: false,
+          link: '/grades/review',
+        });
+      }
+      if (pendingAppeals) {
+        items.push({
+          id: 'a-appeals',
+          title: '申诉汇总',
+          content: `当前有 ${pendingAppeals} 条申诉待处理`,
+          type: 'info',
+          time: '今天',
+          read: false,
+          link: '/appeals',
+        });
+      }
     }
-  }, [user]);
+
+    if (items.length === 0) {
+      items.push({
+        id: 'empty',
+        title: '暂无新通知',
+        content: '系统运行正常',
+        type: 'success',
+        time: '刚刚',
+        read: true,
+      });
+    }
+
+    return items.map((item) => ({ ...item, read: readIds.includes(item.id) || item.read }));
+  }, [user, grades, appeals, exams, readIds]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,12 +177,10 @@ const Header = () => {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -104,84 +196,84 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
-      <div className="flex items-center space-x-4">
-        <h1 className="text-xl font-bold text-primary-600">教务管理系统</h1>
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-sm sticky top-0 z-30">
+      <div className="flex items-center space-x-3">
+        <button
+          type="button"
+          className="md:hidden p-2 text-gray-600 hover:text-primary-600"
+          onClick={() => setMobileOpen(true)}
+          aria-label="打开菜单"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <h1 className="text-lg md:text-xl font-bold text-primary-600">教务管理系统</h1>
       </div>
-      <div className="flex items-center space-x-6">
+      <div className="flex items-center space-x-3 md:space-x-6">
         <div className="relative" ref={notificationRef}>
-          <button 
+          <button
+            type="button"
             className={`relative p-2 transition-colors ${isNotificationOpen ? 'text-primary-600' : 'text-gray-500 hover:text-primary-600'}`}
             onClick={() => setIsNotificationOpen(!isNotificationOpen)}
           >
             <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            )}
+            {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>}
           </button>
-          
+
           {isNotificationOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-800">通知中心</h3>
-                <button onClick={() => setIsNotificationOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <button type="button" onClick={() => setIsNotificationOpen(false)} className="text-gray-400 hover:text-gray-600">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              
+
               <div className="max-h-80 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map((notification) => (
-                    <div 
-                      key={notification.id} 
-                      className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50/50' : ''}`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className="mt-0.5">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${!notification.read ? 'text-gray-800' : 'text-gray-600'}`}>
-                            {notification.title}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {notification.content}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-2">
-                            {notification.time}
-                          </p>
-                        </div>
+                {notifications.map((notification) => (
+                  <button
+                    type="button"
+                    key={notification.id}
+                    className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                      !notification.read ? 'bg-blue-50/50' : ''
+                    }`}
+                    onClick={() => {
+                      setReadIds((ids) => (ids.includes(notification.id) ? ids : [...ids, notification.id]));
+                      if (notification.link) {
+                        navigate(notification.link);
+                        setIsNotificationOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="mt-0.5">{getNotificationIcon(notification.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${!notification.read ? 'text-gray-800' : 'text-gray-600'}`}>
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{notification.content}</p>
+                        <p className="text-xs text-gray-400 mt-2">{notification.time}</p>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center text-gray-400">
-                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">暂无通知</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="px-4 py-2 border-t border-gray-100">
-                <button className="w-full text-sm text-primary-600 hover:text-primary-700 font-medium">
-                  查看全部通知
-                </button>
+                  </button>
+                ))}
               </div>
             </div>
           )}
         </div>
-        <button className="p-2 text-gray-500 hover:text-primary-600 transition-colors" onClick={() => navigate('/profile')}>
+        <button
+          type="button"
+          className="p-2 text-gray-500 hover:text-primary-600 transition-colors"
+          onClick={() => navigate('/profile')}
+        >
           <Settings className="w-5 h-5" />
         </button>
-        <div className="flex items-center space-x-3 pl-4 border-l border-gray-200">
+        <div className="flex items-center space-x-3 pl-3 md:pl-4 border-l border-gray-200">
           <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-            <span className="text-primary-600 font-medium">
-              {user?.name?.charAt(0)}
-            </span>
+            <span className="text-primary-600 font-medium">{user?.name?.charAt(0)}</span>
           </div>
-          <div className="text-right">
+          <div className="text-right hidden sm:block">
             <p className="text-sm font-medium text-gray-800">{user?.name}</p>
-            <p className="text-xs text-gray-500">{getRoleLabel()}</p>
+            <p className="text-xs text-gray-500">{user ? ROLE_LABELS[user.role] : ''}</p>
           </div>
         </div>
       </div>
